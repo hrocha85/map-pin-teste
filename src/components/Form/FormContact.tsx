@@ -127,32 +127,9 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
     }
   };
 
-  const handleSubmit = () => {
-    if (!isCpfValid(formData.cpf)) {
-      setErrors((prev) => ({
-        ...prev,
-        cpf: ["CPF inválido"],
-      }));
-      return;
-    }
-
-    try {
-      contactSchema.parse(formData);
-      const isAdded = addContactToLocalStorage(formData);
-
-      if (isAdded) {
-        handleClose();
-      }
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        const formattedErrors = err.flatten();
-        setErrors(formattedErrors.fieldErrors as FormErrors);
-      }
-    }
-  };
-
   const fetchAddressByCep = async (cep: string) => {
-    if (cep.length === 8) {
+    console.log(cep, "teste");
+    if (cep.length == 8) {
       try {
         const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const data = await response.json();
@@ -197,7 +174,7 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
       });
     }
 
-    if (name === "cep") {
+    if (name == "cep") {
       fetchAddressByCep(cleanedValue);
     }
   };
@@ -234,6 +211,54 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
     }
 
     setFormData({ ...formData, phone: cleanedValue });
+  };
+
+  const addOrEditContactToLocalStorage = (
+    contact: FormData,
+    editing: boolean
+  ) => {
+    const loggedInUser = localStorage.getItem("loggedInUser");
+
+    if (!loggedInUser) {
+      console.error("Nenhum usuário está logado.");
+      return;
+    }
+
+    const contacts = JSON.parse(localStorage.getItem("contacts") || "{}");
+
+    if (!contacts[loggedInUser]) {
+      contacts[loggedInUser] = [];
+    }
+
+    const userContacts = contacts[loggedInUser];
+
+    const cpfDuplicated = userContacts.find(
+      (user: any) => user.cpf === contact.cpf
+    );
+
+    if (!editing && cpfDuplicated) {
+      setErrors({ cpf: ["CPF já cadastrado."] });
+      return;
+    }
+
+    if (editing) {
+      // Encontra o índice do contato a ser editado
+      const index = userContacts.findIndex(
+        (user: { cpf: string }) => user.cpf === contact.cpf
+      );
+      if (index !== -1) {
+        userContacts[index] = { ...contact };
+      }
+    } else {
+      userContacts.push({ ...contact });
+    }
+
+    localStorage.setItem("contacts", JSON.stringify(contacts));
+  };
+
+  const handleSubmit = () => {
+    addOrEditContactToLocalStorage(formData, false);
+    handleClose();
   };
 
   const generateLabel = (key: string): string => {
@@ -322,7 +347,7 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
             disabled={isDisabledButton}
             sx={{ textTransform: "capitalize", fontWeight: "bold" }}
           >
-            Adicionar Contato
+            Adicionar/Editar Contato
           </Button>
         </Stack>
       </Box>

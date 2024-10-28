@@ -13,9 +13,10 @@ import { useNavigate } from "react-router-dom";
 interface DeleteModalProps {
   open: boolean;
   handleClose: () => void;
+  handleDelete?: any;
 }
 
-const DeleteModal = ({ open, handleClose }: DeleteModalProps) => {
+const DeleteModal = ({ open, handleClose, handleDelete }: DeleteModalProps) => {
   const navigate = useNavigate();
 
   const style = {
@@ -32,7 +33,7 @@ const DeleteModal = ({ open, handleClose }: DeleteModalProps) => {
     p: 4,
   };
 
-  const handleDelete = () => {
+  const handleDelete2 = () => {
     const email = getInfoUser();
     deleteUser(email);
     logoutUser();

@@ -12,9 +12,12 @@ import { useMemo, useState } from "react";
 import DeleteModal from "../../components/Modal/DeleteModal";
 import LogoutModal from "../../components/Modal/LogoutModal";
 import FormContact from "../../components/Form/FormContact";
-import { getInfoUser } from "../../utils/localStorage";
+import { deleteUser, getInfoUser, logoutUser } from "../../utils/localStorage";
 import Map from "../../components/Map";
 import { ArrowDownward, ArrowUpward } from "@mui/icons-material";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const [openContact, setOpenContact] = useState(false);
@@ -23,6 +26,8 @@ const Dashboard = () => {
   const [cep, setCep] = useState("");
   const [searchContact, setSearchContact] = useState("");
   const [ascedingSortSearch, setAscedingSortSearch] = useState(true);
+
+  const navigate = useNavigate();
 
   const changeSortSearch = () => {
     setAscedingSortSearch(!ascedingSortSearch);
@@ -71,6 +76,53 @@ const Dashboard = () => {
         return b.name.localeCompare(a.name);
       });
   }, [contactsByUser, searchContact, ascedingSortSearch]);
+
+  const handleEdit = (cpf: string) => {
+    const loggedInUser = localStorage.getItem("loggedInUser");
+    const contacts = JSON.parse(localStorage.getItem("contacts") || "{}");
+
+    if (!loggedInUser || !contacts[loggedInUser]) {
+      return;
+    }
+
+    const contactToEdit = contacts[loggedInUser].find(
+      (user: { cpf: string }) => user.cpf === cpf
+    );
+    if (contactToEdit) {
+      // setFormData(contactToEdit as FormData);
+    }
+  };
+
+  const verificaCpf = (cpf) => {
+    if (cpf) {
+      handleDeleteContacts(cpf);
+    } else {
+    }
+  };
+
+  const handleDeleteAccout = () => {
+    const email = getInfoUser();
+    deleteUser(email);
+    logoutUser();
+    navigate("/");
+  };
+
+  const handleDeleteContacts = (cpf: string) => {
+    const loggedInUser = localStorage.getItem("loggedInUser");
+    const contacts = JSON.parse(localStorage.getItem("contacts") || "{}");
+
+    if (!loggedInUser || !contacts[loggedInUser]) {
+      return;
+    }
+
+    // Remove o contato pelo CPF
+    const updatedContacts = contacts[loggedInUser].filter(
+      (user: { cpf: string }) => user.cpf !== cpf
+    );
+    contacts[loggedInUser] = updatedContacts;
+
+    localStorage.setItem("contacts", JSON.stringify(contacts));
+  };
 
   return (
     <Box display="flex" flexDirection="column">
@@ -154,6 +206,27 @@ const Dashboard = () => {
                     <Typography variant="body2">
                       Estado: {contact.state}
                     </Typography>
+
+                    {/* Add a delete button */}
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent the card click from being triggered
+                        setOpenDelete(true);
+                        handleDeleteContacts(contact.cpf);
+                      }}
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent the card click from being triggered
+                        handleEdit(contact.cpf);
+                      }}
+                      color="warning"
+                    >
+                      <EditIcon />
+                    </IconButton>
                   </CardContent>
                 </Card>
               ))}
@@ -186,6 +259,7 @@ const Dashboard = () => {
       <DeleteModal
         open={openDelete}
         handleClose={() => handleClose(setOpenDelete)}
+        //  handleDelete={() => }
       />
     </Box>
   );
