@@ -7,18 +7,22 @@ import {
   Stack,
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
-import { deleteUser, getInfoUser, logoutUser } from "../../utils/localStorage";
-import { useNavigate } from "react-router-dom";
 
 interface DeleteModalProps {
   open: boolean;
+  title: string;
+  button: string;
   handleClose: () => void;
-  handleDelete?: any;
+  handleDelete: () => void;
 }
 
-const DeleteModal = ({ open, handleClose, handleDelete }: DeleteModalProps) => {
-  const navigate = useNavigate();
-
+const DeleteModal = ({
+  open,
+  title,
+  button,
+  handleClose,
+  handleDelete,
+}: DeleteModalProps) => {
   const style = {
     position: "absolute",
     top: "50%",
@@ -33,11 +37,9 @@ const DeleteModal = ({ open, handleClose, handleDelete }: DeleteModalProps) => {
     p: 4,
   };
 
-  const handleDelete2 = () => {
-    const email = getInfoUser();
-    deleteUser(email);
-    logoutUser();
-    navigate("/");
+  const handleActionDelete = () => {
+    handleDelete();
+    handleClose();
   };
 
   return (
@@ -57,7 +59,7 @@ const DeleteModal = ({ open, handleClose, handleDelete }: DeleteModalProps) => {
 
         <Stack spacing={3} alignItems="center" textAlign="center">
           <Typography variant="h6" component="h2">
-            Tem certeza de que deseja deletar sua conta?
+            {title}
           </Typography>
 
           <Typography variant="body2" color="text.secondary">
@@ -68,13 +70,13 @@ const DeleteModal = ({ open, handleClose, handleDelete }: DeleteModalProps) => {
             variant="contained"
             fullWidth
             color="error"
-            onClick={handleDelete}
+            onClick={handleActionDelete}
             sx={{
               mt: 2,
               fontWeight: "bold",
             }}
           >
-            DELETAR MINHA CONTA
+            {button}
           </Button>
         </Stack>
       </Box>

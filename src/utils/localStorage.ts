@@ -5,11 +5,15 @@ export const saveUser = (email: string, hashedPassword: string) => {
 };
 
 export const deleteUser = (email: string) => {
-  const users = JSON.parse(localStorage.getItem("users") || "[]");
+  const users = JSON.parse(localStorage.getItem("users") || "{}");
+  const contacts = JSON.parse(localStorage.getItem("contacts") || "{}");
   const updatedUsers = users.filter(
     (user: { email: string; password: string }) => user.email !== email
   );
+  delete contacts[email];
+
   localStorage.setItem("users", JSON.stringify(updatedUsers));
+  localStorage.setItem("contacts", JSON.stringify(contacts));
 };
 
 export const getUser = (email: string) => {
@@ -18,7 +22,7 @@ export const getUser = (email: string) => {
 };
 
 export const getContactsByUser = (email: string) => {
-  const contacts = JSON.parse(localStorage.getItem("contacts") || "[]");
+  const contacts = JSON.parse(localStorage.getItem("contacts") || "{}");
   return contacts[email] || [];
 };
 

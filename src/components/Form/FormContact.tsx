@@ -8,14 +8,16 @@ import {
   Stack,
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
-import { useEffect, useState } from "react";
-import { contactSchema } from "../../utils/validations/contactSchema";
-import { z } from "zod";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { getInfoUser } from "../../utils/localStorage";
+import { ContactType } from "../../types";
 import { isCpfValid } from "../../utils/cpfValidator";
 
 interface FormContactProps {
   open: boolean;
   handleClose: () => void;
+  cpfEditContact: string;
+  removeCpfEditContact: Dispatch<SetStateAction<string>>;
 }
 
 interface FormData {
@@ -34,7 +36,6 @@ const style = {
   left: "50%",
   transform: "translate(-50%, -50%)",
   width: 400,
-  maxHeight: 500,
   overflowY: "auto",
   bgcolor: "background.paper",
   boxShadow: 24,
@@ -46,7 +47,12 @@ interface FormErrors {
   [key: string]: string[];
 }
 
-const FormContact = ({ open, handleClose }: FormContactProps) => {
+const FormContact = ({
+  open,
+  handleClose,
+  cpfEditContact,
+  removeCpfEditContact,
+}: FormContactProps) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
     cpf: "",
@@ -57,6 +63,8 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
     state: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const loggedInUser = getInfoUser();
+
   const isDisabledButton =
     !formData.name ||
     !formData.cpf ||
@@ -65,7 +73,30 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
     !formData.cep;
 
   useEffect(() => {
-    if (open) {
+    const contacts = JSON.parse(localStorage.getItem("contacts") || "{}");
+
+    if (!contacts[loggedInUser]) {
+      return;
+    }
+
+    const contactToEdit = contacts[loggedInUser].find(
+      (contact: ContactType) => contact.cpf === cpfEditContact
+    );
+
+    if (cpfEditContact) {
+      setFormData({
+        name: contactToEdit.name,
+        cpf: contactToEdit.cpf,
+        phone: contactToEdit.phone,
+        cep: contactToEdit.cep,
+        address: contactToEdit.address,
+        city: contactToEdit.city,
+        state: contactToEdit.state,
+      });
+      setErrors({});
+    }
+
+    if (open && !cpfEditContact) {
       setFormData({
         name: "",
         cpf: "",
@@ -77,42 +108,11 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
       });
       setErrors({});
     }
-  }, [open]);
+  }, [open, cpfEditContact]);
 
-  const addContactToLocalStorage = (contact: FormData) => {
-    const loggedInUser = localStorage.getItem("loggedInUser");
-
-    if (!loggedInUser) {
-      console.error("Nenhum usuário está logado.");
-      return;
-    }
-
-    const contacts = JSON.parse(localStorage.getItem("contacts") || "{}");
-
-    if (!contacts[loggedInUser]) {
-      contacts[loggedInUser] = [];
-    }
-
-    const userContacts = contacts[loggedInUser];
-
-    const cpfDuplicated = userContacts.find(
-      (user: any) => user.cpf === contact.cpf
-    );
-
-    if (cpfDuplicated) {
-      console.error("CPF já cadastrado.");
-      setErrors((prev) => ({
-        ...prev,
-        cpf: ["CPF já cadastrado."],
-      }));
-      return false;
-    }
-
-    userContacts.push(contact);
-    localStorage.setItem("contacts", JSON.stringify(contacts));
-
-    console.log("Contato adicionado:", contact);
-    return true;
+  const handleCloseModal = () => {
+    handleClose();
+    removeCpfEditContact("");
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,8 +128,7 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
   };
 
   const fetchAddressByCep = async (cep: string) => {
-    console.log(cep, "teste");
-    if (cep.length == 8) {
+    if (cep.length == 9) {
       try {
         const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
         const data = await response.json();
@@ -141,12 +140,22 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
             state: data.uf,
           }));
         } else {
-          console.error("CEP não encontrado.");
           setErrors({ cep: ["CEP não encontrado."] });
         }
       } catch (error) {
-        console.error("Erro ao buscar CEP:", error);
+        setErrors({
+          cep: ["Ocorreu um erro inesperado, tente novamente mais tarde."],
+        });
       }
+    }
+
+    if (cep.length < 9) {
+      setFormData((prev) => ({
+        ...prev,
+        address: "",
+        city: "",
+        state: "",
+      }));
     }
   };
 
@@ -198,9 +207,8 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
-    let cleanedValue = value.replace(/\D/g, ""); // Remove todos os caracteres que não são números
+    let cleanedValue = value.replace(/\D/g, "");
 
-    // Formata o número no padrão de celular brasileiro: (13) 99176-4000
     if (cleanedValue.length <= 11) {
       if (cleanedValue.length > 2) {
         cleanedValue = `(${cleanedValue.slice(0, 2)}) ${cleanedValue.slice(2)}`;
@@ -217,13 +225,6 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
     contact: FormData,
     editing: boolean
   ) => {
-    const loggedInUser = localStorage.getItem("loggedInUser");
-
-    if (!loggedInUser) {
-      console.error("Nenhum usuário está logado.");
-      return;
-    }
-
     const contacts = JSON.parse(localStorage.getItem("contacts") || "{}");
 
     if (!contacts[loggedInUser]) {
@@ -232,9 +233,15 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
 
     const userContacts = contacts[loggedInUser];
 
+    // Validação de CPF duplicado
     const cpfDuplicated = userContacts.find(
-      (user: any) => user.cpf === contact.cpf
+      (userContact: { cpf: any }) => userContact.cpf === contact.cpf
     );
+
+    if (!isCpfValid(contact.cpf)) {
+      setErrors({ cpf: ["CPF inválido."] });
+      return;
+    }
 
     if (!editing && cpfDuplicated) {
       setErrors({ cpf: ["CPF já cadastrado."] });
@@ -242,9 +249,8 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
     }
 
     if (editing) {
-      // Encontra o índice do contato a ser editado
       const index = userContacts.findIndex(
-        (user: { cpf: string }) => user.cpf === contact.cpf
+        (user: { cpf: string }) => user.cpf === cpfEditContact
       );
       if (index !== -1) {
         userContacts[index] = { ...contact };
@@ -254,13 +260,10 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
     }
 
     localStorage.setItem("contacts", JSON.stringify(contacts));
-  };
 
-  const handleSubmit = () => {
-    addOrEditContactToLocalStorage(formData, false);
-    handleClose();
+    removeCpfEditContact("");
+    handleCloseModal();
   };
-
   const generateLabel = (key: string): string => {
     switch (key) {
       case "name":
@@ -314,16 +317,16 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
   };
 
   return (
-    <Modal open={open} onClose={handleClose}>
+    <Modal open={open} onClose={handleCloseModal}>
       <Box sx={style}>
         <IconButton
-          onClick={handleClose}
+          onClick={handleCloseModal}
           sx={{ position: "absolute", top: 8, right: 8, color: "grey.600" }}
         >
           <Close />
         </IconButton>
         <Typography variant="h6" component="h2" align="center">
-          Adicionar Novo Contato
+          {cpfEditContact ? "Editar contato" : "Adicionar novo contato"}
         </Typography>
         <Stack spacing={2} mt={2}>
           {Object.keys(formData).map((key) => (
@@ -343,11 +346,13 @@ const FormContact = ({ open, handleClose }: FormContactProps) => {
           ))}
           <Button
             variant="contained"
-            onClick={handleSubmit}
+            onClick={() =>
+              addOrEditContactToLocalStorage(formData, !!cpfEditContact)
+            }
             disabled={isDisabledButton}
             sx={{ textTransform: "capitalize", fontWeight: "bold" }}
           >
-            Adicionar/Editar Contato
+            {cpfEditContact ? "Editar contato" : "Adicionar contato"}
           </Button>
         </Stack>
       </Box>
